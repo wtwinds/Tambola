@@ -1,4 +1,4 @@
-const WS_URL="wss://python-tambola.onrender.com";
+const WS_URL="wss://tambola-f6di.onrender.com";
 const socket=new WebSocket(WS_URL);
 
 let isHost=false;
