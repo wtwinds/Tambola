@@ -4,14 +4,12 @@ import random
 import websockets
 import uuid
 import time
-import os
 from http import HTTPStatus
 from websockets.http import Headers
 
 rooms = {}
 
-# ---------- HELPERS ----------
-
+# ------------------ HELPERS ------------------
 def generate_ticket():
     nums = list(range(1, 91))
     random.shuffle(nums)
@@ -25,42 +23,37 @@ def flatten(ticket):
     return {n for row in ticket for n in row if n != 0}
 
 def broadcast(room_id, msg):
-    for ws in list(rooms[room_id]["players"]):
+    room = rooms.get(room_id)
+    if not room:
+        return
+    for ws in list(room["players"]):
         asyncio.create_task(ws.send(json.dumps(msg)))
 
-# ---------- CLAIM VALIDATION ----------
-
-def is_valid_claim(claim, ticket, marked):
-    if claim == "QUICK_5":
-        return len(marked) >= 5
-
-    if claim == "FIRST_LINE":
-        return all(n in marked for n in ticket[0] if n != 0)
-
-    if claim == "SECOND_LINE":
-        return all(n in marked for n in ticket[1] if n != 0)
-
-    if claim == "THIRD_LINE":
-        return all(n in marked for n in ticket[2] if n != 0)
-
-    if claim == "FOUR_CORNERS":
-        corners = [ticket[0][0], ticket[0][8], ticket[2][0], ticket[2][8]]
-        return all(n in marked for n in corners if n != 0)
-
-    if claim == "TAMBOLA":
-        return all(n in marked for row in ticket for n in row if n != 0)
-
-    return False
-
-# ---------- RENDER HEALTH ----------
-
+# ------------------ HEAD / HEALTH FIX (SYNC!) ------------------
 def process_request(path, headers):
+    # Allow Render/Proxy HEAD & GET without WS upgrade
     if headers.get("Upgrade", "").lower() != "websocket":
         return HTTPStatus.OK, Headers(), b"OK"
     return None
 
-# ---------- MAIN HANDLER ----------
+# ------------------ CLAIM VALIDATION ------------------
+def is_valid_claim(claim, ticket, marked):
+    if claim == "QUICK_5":
+        return len(marked) >= 5
+    if claim == "FIRST_LINE":
+        return all(n in marked for n in ticket[0] if n != 0)
+    if claim == "SECOND_LINE":
+        return all(n in marked for n in ticket[1] if n != 0)
+    if claim == "THIRD_LINE":
+        return all(n in marked for n in ticket[2] if n != 0)
+    if claim == "FOUR_CORNERS":
+        corners = [ticket[0][0], ticket[0][8], ticket[2][0], ticket[2][8]]
+        return all(n in marked for n in cornersью
+    if claim == "TAMBOLA":
+        return all(n in marked for row in ticket for n in row if n != 0)
+    return False
 
+# ------------------ MAIN HANDLER ------------------
 async def handler(ws):
     room_id = None
     player = None
@@ -71,7 +64,6 @@ async def handler(ws):
             t = data["type"]
             p = data.get("data", {})
 
-            # CREATE ROOM
             if t == "CREATE_ROOM":
                 player = p["player_name"]
                 mode = p.get("mode", "AUTO")
@@ -95,7 +87,6 @@ async def handler(ws):
                     "data": {"room_id": room_id}
                 }))
 
-            # JOIN ROOM
             elif t == "JOIN_ROOM":
                 room_id = p["room_id"]
                 player = p["player_name"]
@@ -111,7 +102,6 @@ async def handler(ws):
                     "data": {"players": list(room["scores"].keys())}
                 })
 
-            # START GAME
             elif t == "START_GAME":
                 room = rooms.get(room_id)
                 if not room or ws != room["host"]:
@@ -121,7 +111,6 @@ async def handler(ws):
                     ticket = generate_ticket()
                     room["tickets"][pws] = ticket
                     room["marked"][pws] = set()
-
                     await pws.send(json.dumps({
                         "type": "TICKET_ASSIGNED",
                         "data": {"ticket": ticket}
@@ -132,19 +121,15 @@ async def handler(ws):
                     "data": {"mode": room["mode"]}
                 })
 
-            # DRAW NUMBER
             elif t == "DRAW_NUMBER":
                 room = rooms.get(room_id)
-                if not room or ws != room["host"]:
-                    continue
-                if not room["numbers"]:
+                if not room or ws != room["host"] or not room["numbers"]:
                     continue
 
                 num = room["numbers"].pop()
                 room["called"].append(num)
                 room["draw_times"][num] = time.time()
 
-                # AUTO MODE MARKING (SERVER SIDE)
                 if room["mode"] == "AUTO":
                     for pws, ticket in room["tickets"].items():
                         if num in flatten(ticket):
@@ -155,23 +140,18 @@ async def handler(ws):
                     "data": {"number": num}
                 })
 
-            # MANUAL MARK
             elif t == "MARK_NUMBER":
                 room = rooms.get(room_id)
-                num = p["number"]
-
                 if room["mode"] != "MANUAL":
                     continue
-
+                num = p["number"]
                 draw_time = room["draw_times"].get(num)
                 if not draw_time or time.time() - draw_time > 10:
                     continue
-
                 ticket = room["tickets"].get(ws)
                 if ticket and num in flatten(ticket):
                     room["marked"][ws].add(num)
 
-            # CLAIM
             elif t == "MAKE_CLAIM":
                 room = rooms.get(room_id)
                 claim = p["claim"]
@@ -204,7 +184,6 @@ async def handler(ws):
                         "claim": claim
                     }
                 })
-
                 broadcast(room_id, {
                     "type": "SCORE_UPDATE",
                     "data": {"scores": room["scores"]}
@@ -215,19 +194,17 @@ async def handler(ws):
             rooms[room_id]["players"].pop(ws, None)
             rooms[room_id]["marked"].pop(ws, None)
             if not rooms[room_id]["players"]:
-                rooms.pop(room_id)
+                rooms.pop(room_id, None)
 
-# ---------- START SERVER ----------
-
+# ------------------ START SERVER (FIXED PORT) ------------------
 async def main():
-    port = int(os.environ["PORT"])
     async with websockets.serve(
         handler,
         "0.0.0.0",
-        port,
+        8765,
         process_request=process_request
     ):
-        print("WebSocket running on", port)
+        print("WebSocket running on port 8765")
         await asyncio.Future()
 
 asyncio.run(main())
