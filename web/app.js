@@ -2,23 +2,18 @@ const WS_URL = "wss://tambola-f6di.onrender.com";
 const socket = new WebSocket(WS_URL);
 
 let isHost = false;
-let marked = new Set();
 let gameMode = "AUTO";
+let marked = new Set();
 
-/* ===== MANUAL MODE VALIDATION VARS ===== */
 let currentNumber = null;
 let numberTimestamp = 0;
-const MARK_WINDOW = 10000; // 10 seconds
+const MARK_WINDOW = 10000;
 
-/* ===== UI HELPERS ===== */
 function showScreen(id){
-  document.querySelectorAll(".screen").forEach(s =>
-    s.classList.remove("active")
-  );
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
 }
 
-/* ===== TICKET RENDER ===== */
 function renderTicket(ticket){
   const div = document.getElementById("ticket");
   div.innerHTML = "";
@@ -39,78 +34,46 @@ function renderTicket(ticket){
         c.innerText = n;
         c.dataset.number = n;
 
-        /* ===== MANUAL CLICK LOGIC ===== */
         c.onclick = () => {
           if(gameMode !== "MANUAL") return;
 
-          const clickedNumber = Number(c.dataset.number);
           const now = Date.now();
+          const num = Number(c.dataset.number);
 
-          // ❌ No number drawn yet
-          if(currentNumber === null){
-            c.classList.remove("marked");
-            marked.delete(clickedNumber);
-            return;
-          }
+          if(currentNumber === null) return;
+          if(now - numberTimestamp > MARK_WINDOW) return;
+          if(num !== currentNumber) return;
 
-          // ❌ Time expired
-          if(now - numberTimestamp > MARK_WINDOW){
-            c.classList.remove("marked");
-            marked.delete(clickedNumber);
-            return;
-          }
-
-          // ❌ Wrong number
-          if(clickedNumber !== currentNumber){
-            c.classList.remove("marked");
-            marked.delete(clickedNumber);
-            return;
-          }
-
-          // ✅ Correct number in time
           c.classList.add("marked");
-          marked.add(clickedNumber);
+          marked.add(num);
         };
       }
-
       r.appendChild(c);
     });
-
     div.appendChild(r);
   });
 }
 
-/* ===== CLAIM ===== */
-function claim(type){
-  socket.send(JSON.stringify({
-    type: "MAKE_CLAIM",
-    data: { claim: type }
-  }));
-}
-
 function showClaim(msg, cls){
   const box = document.getElementById("claim-status");
-  box.className = `claim-status show ${cls}`;
+  box.className = "claim-status";
+  void box.offsetWidth;
+  box.classList.add("show", cls);
   box.innerText = msg;
-  setTimeout(() => box.className = "claim-status", 2000);
+
+  setTimeout(()=>box.className="claim-status",2200);
 }
 
-/* ===== SOCKET EVENTS ===== */
+function claim(type){
+  socket.send(JSON.stringify({ type:"MAKE_CLAIM", data:{ claim:type }}));
+}
+
 socket.onmessage = e => {
   const { type, data } = JSON.parse(e.data);
 
-  if(type === "CLAIM_RESULT"){
-    if(data.status === "SUCCESS")
-      showClaim(`${data.player} claimed ${data.claim}`, "success");
-    if(data.status === "INVALID")
-      showClaim("Invalid Claim", "invalid");
-    if(data.status === "ALREADY")
-      showClaim("Already Claimed", "already");
-  }
-
   if(type === "ROOM_CREATED"){
-    document.getElementById("room-id").innerText = data.room_id;
     isHost = true;
+    document.getElementById("room-id").innerText = data.room_id;
     showScreen("waiting-screen");
   }
 
@@ -124,24 +87,18 @@ socket.onmessage = e => {
     });
   }
 
-  if(type === "TICKET_ASSIGNED"){
-    renderTicket(data.ticket);
-  }
+  if(type === "TICKET_ASSIGNED") renderTicket(data.ticket);
 
   if(type === "GAME_STARTED"){
     showScreen("game-screen");
-    if(isHost)
-      document.getElementById("draw-btn").style.display = "block";
+    if(isHost) document.getElementById("draw-btn").style.display="block";
   }
 
-  /* ===== NUMBER DRAWN ===== */
   if(type === "NUMBER_DRAWN"){
     document.getElementById("current-number").innerText = data.number;
-
     currentNumber = Number(data.number);
     numberTimestamp = Date.now();
 
-    /* 🔒 AUTOMATIC MODE — UNCHANGED */
     if(gameMode === "AUTO"){
       document.querySelectorAll(".ticket-cell").forEach(c=>{
         if(c.dataset.number == data.number){
@@ -152,63 +109,51 @@ socket.onmessage = e => {
     }
   }
 
+  if(type === "CLAIM_RESULT"){
+    if(data.status === "SUCCESS"){
+      showClaim(`${data.player} claimed ${data.claim}`, "success");
+      document.querySelectorAll(".claims button").forEach(b=>{
+        if(b.onclick.toString().includes(data.claim)) b.disabled = true;
+      });
+    }
+    if(data.status === "INVALID") showClaim("Invalid Claim ❌", "invalid");
+    if(data.status === "ALREADY") showClaim("Already Claimed ⚠️", "already");
+  }
+
   if(type === "SCORE_UPDATE"){
     const ul = document.getElementById("score-list");
-    ul.innerHTML = "";
+    ul.innerHTML="";
     Object.entries(data.scores).forEach(([p,s])=>{
-      const li = document.createElement("li");
-      li.innerText = `${p}: ${s}`;
+      const li=document.createElement("li");
+      li.innerText=`${p}: ${s}`;
       ul.appendChild(li);
     });
   }
-
-  if(type === "GAME_ENDED"){
-    const ol = document.getElementById("leaderboard-list");
-    ol.innerHTML = "";
-    data.leaderboard.forEach(p=>{
-      const li = document.createElement("li");
-      li.innerText = `${p.name} - ${p.score}`;
-      ol.appendChild(li);
-    });
-    showScreen("leaderboard-screen");
-  }
 };
 
-/* ===== BUTTON EVENTS ===== */
 document.getElementById("create-room-btn").onclick = () => {
   const name = document.getElementById("player-name").value.trim();
   if(!name) return;
-
-  const mode =
-    document.querySelector('input[name="mode"]:checked').value;
-
-  gameMode = mode;
+  gameMode = document.querySelector('input[name="mode"]:checked').value;
 
   socket.send(JSON.stringify({
-    type: "CREATE_ROOM",
-    data: { player_name: name, mode: mode }
+    type:"CREATE_ROOM",
+    data:{ player_name:name, mode:gameMode }
   }));
 };
 
 document.getElementById("join-room-btn").onclick = () => {
-  const name = document.getElementById("player-name").value.trim();
-  const room = document.getElementById("room-input").value.trim();
-  if(!name || !room) return;
+  const name=document.getElementById("player-name").value.trim();
+  const room=document.getElementById("room-input").value.trim();
+  if(!name||!room)return;
 
-  gameMode = "AUTO"; 
-
+  gameMode="AUTO";
   socket.send(JSON.stringify({
-    type: "JOIN_ROOM",
-    data: { player_name: name, room_id: room }
+    type:"JOIN_ROOM",
+    data:{ player_name:name, room_id:room }
   }));
-
   showScreen("waiting-screen");
 };
 
-document.getElementById("start-game-btn").onclick = () => {
-  socket.send(JSON.stringify({ type: "START_GAME" }));
-};
-
-document.getElementById("draw-btn").onclick = () => {
-  socket.send(JSON.stringify({ type: "DRAW_NUMBER" }));
-};
+document.getElementById("start-game-btn").onclick=()=>socket.send(JSON.stringify({type:"START_GAME"}));
+document.getElementById("draw-btn").onclick=()=>socket.send(JSON.stringify({type:"DRAW_NUMBER"}));
