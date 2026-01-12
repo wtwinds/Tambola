@@ -12,10 +12,26 @@
   <!-- LOBBY -->
   <section id="lobby-screen" class="screen active">
     <h1>Tambola</h1>
+
     <div class="card">
       <input id="player-name" placeholder="Enter your name" />
+
+      <h3>Select Mode</h3>
+      <div class="mode-select">
+        <label>
+          <input type="radio" name="mode" value="AUTO" checked>
+          Automatic
+        </label>
+        <label>
+          <input type="radio" name="mode" value="MANUAL">
+          Manual
+        </label>
+      </div>
+
       <button id="create-room-btn">Create Room</button>
+
       <hr />
+
       <input id="room-input" placeholder="Enter Room ID" />
       <button id="join-room-btn">Join Room</button>
     </div>
@@ -37,7 +53,6 @@
     <h2>Current Number</h2>
     <div id="current-number">--</div>
 
-    <!-- MANUAL DRAW BUTTON -->
     <button id="draw-btn" style="display:none; margin-bottom:10px;">
       Draw Number
     </button>
@@ -61,9 +76,8 @@
         <h3>Scores</h3>
         <ul id="score-list"></ul>
       </div>
-      
-      <div id="claim-status" class="claim-status"></div>
 
+      <div id="claim-status" class="claim-status"></div>
     </div>
   </section>
 

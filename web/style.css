@@ -1,141 +1,80 @@
-* {
-  box-sizing: border-box;
-  font-family: 'Segoe UI', sans-serif;
+body{
+  margin:0;
+  font-family:Arial, sans-serif;
+  background:#0f0f0f;
+  color:#fff;
 }
 
-body {
-  margin: 0;
-  background: radial-gradient(circle at top, #1a1a1a, #000);
-  color: #fff;
-  min-height: 100vh;
+.screen{
+  display:none;
+  padding:20px;
+  text-align:center;
 }
 
-#app {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
+.screen.active{
+  display:block;
 }
 
-.screen {
-  display: none;
-  width: 100%;
-  max-width: 420px;
-  padding: 20px;
+.card{
+  background:#1e1e1e;
+  padding:20px;
+  border-radius:10px;
+  max-width:300px;
+  margin:20px auto;
 }
 
-.screen.active {
-  display: block;
+input,button{
+  width:100%;
+  padding:10px;
+  margin:5px 0;
+  border:none;
+  border-radius:5px;
 }
 
-h1, h2, h3 {
-  text-align: center;
-}
-
-.card {
-  background: rgba(255,255,255,0.08);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-}
-
-input {
-  width: 100%;
-  padding: 14px;
-  border-radius: 12px;
-  border: none;
-  margin-bottom: 12px;
-  background: rgba(0,0,0,0.4);
-  color: #fff;
-}
-
-button {
-  width: 100%;
-  padding: 14px;
-  border-radius: 12px;
-  border: none;
-  background: linear-gradient(135deg, #ff9800, #ff5722);
-  font-weight: bold;
-  cursor: pointer;
-  margin-top: 8px;
-}
-
-hr {
-  border: none;
-  height: 1px;
-  background: rgba(255,255,255,0.1);
-  margin: 20px 0;
-}
-
-#current-number {
-  font-size: 64px;
-  text-align: center;
-  margin: 20px 0;
-}
-
-.layout {
-  display: grid;
-  gap: 20px;
-}
-
-/* Ticket */
-
-.ticket-grid {
-  display: grid;
-  grid-template-rows: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.ticket-row {
-  display: grid;
-  grid-template-columns: repeat(9, 1fr);
-  gap: 6px;
-}
-
-.ticket-cell {
-  height: 38px;
-  border-radius: 6px;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-}
-
-.ticket-cell.marked {
-  background: linear-gradient(135deg, #4caf50, #2e7d32);
-  color: #000;
-}
-
-
-.ticket-cell.empty {
-  background: transparent;
-  border: 1px dashed rgba(255,255,255,0.25);
-}
-
-
-/* Claims */
-
-.claims {
-  margin-top: 16px;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-
-.claim-status{
-  position:fixed;
-  top:20px;
-  left:50%;
-  transform:translateX(-50%);
-  padding:14px 24px;
-  border-radius:12px;
+button{
+  background:#ff8c00;
+  color:#000;
   font-weight:bold;
-  opacity:0;
-  transition:all .4s;
+  cursor:pointer;
 }
-.claim-status.show{opacity:1;top:40px;}
-.claim-status.success{background:#2e7d32;}
-.claim-status.invalid{background:#b71c1c;}
-.claim-status.already{background:#f57c00;}
+
+button:hover{
+  opacity:0.9;
+}
+
+.ticket-grid{
+  display:grid;
+  gap:5px;
+}
+
+.ticket-row{
+  display:grid;
+  grid-template-columns:repeat(9,1fr);
+}
+
+.ticket-cell{
+  background:#333;
+  padding:8px;
+  border-radius:5px;
+  cursor:pointer;
+}
+
+.ticket-cell.marked{
+  background:#2ecc71;
+  color:#000;
+}
+
+.ticket-cell.empty{
+  background:transparent;
+  cursor:default;
+}
+
+.mode-select{
+  display:flex;
+  justify-content:space-around;
+  margin:10px 0;
+}
+
+.mode-select label{
+  cursor:pointer;
+}
