@@ -5,8 +5,12 @@ import websockets
 import uuid
 import time
 import os
+from http import HTTPStatus
+from websockets.http import Headers
 
 rooms = {}
+
+# ---------- HELPERS ----------
 
 def generate_ticket():
     nums = list(range(1, 91))
@@ -17,9 +21,45 @@ def generate_ticket():
             ticket[r][c] = nums.pop()
     return ticket
 
+def flatten(ticket):
+    return {n for row in ticket for n in row if n != 0}
+
 def broadcast(room_id, msg):
     for ws in list(rooms[room_id]["players"]):
         asyncio.create_task(ws.send(json.dumps(msg)))
+
+# ---------- CLAIM VALIDATION ----------
+
+def is_valid_claim(claim, ticket, marked):
+    if claim == "QUICK_5":
+        return len(marked) >= 5
+
+    if claim == "FIRST_LINE":
+        return all(n in marked for n in ticket[0] if n != 0)
+
+    if claim == "SECOND_LINE":
+        return all(n in marked for n in ticket[1] if n != 0)
+
+    if claim == "THIRD_LINE":
+        return all(n in marked for n in ticket[2] if n != 0)
+
+    if claim == "FOUR_CORNERS":
+        corners = [ticket[0][0], ticket[0][8], ticket[2][0], ticket[2][8]]
+        return all(n in marked for n in corners if n != 0)
+
+    if claim == "TAMBOLA":
+        return all(n in marked for row in ticket for n in row if n != 0)
+
+    return False
+
+# ---------- RENDER HEALTH ----------
+
+def process_request(path, headers):
+    if headers.get("Upgrade", "").lower() != "websocket":
+        return HTTPStatus.OK, Headers(), b"OK"
+    return None
+
+# ---------- MAIN HANDLER ----------
 
 async def handler(ws):
     room_id = None
@@ -31,18 +71,23 @@ async def handler(ws):
             t = data["type"]
             p = data.get("data", {})
 
+            # CREATE ROOM
             if t == "CREATE_ROOM":
                 player = p["player_name"]
+                mode = p.get("mode", "AUTO")
                 room_id = str(uuid.uuid4())[:6]
 
                 rooms[room_id] = {
                     "players": {ws: player},
                     "tickets": {},
+                    "marked": {},
                     "host": ws,
                     "numbers": random.sample(range(1, 91), 90),
                     "called": [],
+                    "draw_times": {},
                     "scores": {player: 0},
-                    "claims": {}
+                    "claims": {},
+                    "mode": mode
                 }
 
                 await ws.send(json.dumps({
@@ -50,56 +95,106 @@ async def handler(ws):
                     "data": {"room_id": room_id}
                 }))
 
+            # JOIN ROOM
             elif t == "JOIN_ROOM":
                 room_id = p["room_id"]
                 player = p["player_name"]
-                r = rooms.get(room_id)
-                if not r:
+                room = rooms.get(room_id)
+                if not room:
                     continue
-                r["players"][ws] = player
-                r["scores"][player] = 0
+
+                room["players"][ws] = player
+                room["scores"][player] = 0
+
                 broadcast(room_id, {
                     "type": "PLAYERS_UPDATE",
-                    "data": {"players": list(r["scores"].keys())}
+                    "data": {"players": list(room["scores"].keys())}
                 })
 
+            # START GAME
             elif t == "START_GAME":
-                r = rooms[room_id]
-                if ws != r["host"]:
+                room = rooms.get(room_id)
+                if not room or ws != room["host"]:
                     continue
-                for pws in r["players"]:
+
+                for pws in room["players"]:
                     ticket = generate_ticket()
-                    r["tickets"][pws] = ticket
+                    room["tickets"][pws] = ticket
+                    room["marked"][pws] = set()
+
                     await pws.send(json.dumps({
                         "type": "TICKET_ASSIGNED",
                         "data": {"ticket": ticket}
                     }))
-                broadcast(room_id, {"type": "GAME_STARTED"})
 
+                broadcast(room_id, {
+                    "type": "GAME_STARTED",
+                    "data": {"mode": room["mode"]}
+                })
+
+            # DRAW NUMBER
             elif t == "DRAW_NUMBER":
-                r = rooms[room_id]
-                if ws != r["host"] or not r["numbers"]:
+                room = rooms.get(room_id)
+                if not room or ws != room["host"]:
                     continue
-                num = r["numbers"].pop()
-                r["called"].append(num)
+                if not room["numbers"]:
+                    continue
+
+                num = room["numbers"].pop()
+                room["called"].append(num)
+                room["draw_times"][num] = time.time()
+
+                # AUTO MODE MARKING (SERVER SIDE)
+                if room["mode"] == "AUTO":
+                    for pws, ticket in room["tickets"].items():
+                        if num in flatten(ticket):
+                            room["marked"][pws].add(num)
+
                 broadcast(room_id, {
                     "type": "NUMBER_DRAWN",
                     "data": {"number": num}
                 })
 
+            # MANUAL MARK
+            elif t == "MARK_NUMBER":
+                room = rooms.get(room_id)
+                num = p["number"]
+
+                if room["mode"] != "MANUAL":
+                    continue
+
+                draw_time = room["draw_times"].get(num)
+                if not draw_time or time.time() - draw_time > 10:
+                    continue
+
+                ticket = room["tickets"].get(ws)
+                if ticket and num in flatten(ticket):
+                    room["marked"][ws].add(num)
+
+            # CLAIM
             elif t == "MAKE_CLAIM":
-                r = rooms[room_id]
+                room = rooms.get(room_id)
                 claim = p["claim"]
 
-                if claim in r["claims"]:
+                if claim in room["claims"]:
                     await ws.send(json.dumps({
                         "type": "CLAIM_RESULT",
                         "data": {"status": "ALREADY"}
                     }))
                     continue
 
-                r["claims"][claim] = player
-                r["scores"][player] += 10
+                ticket = room["tickets"][ws]
+                marked = room["marked"][ws]
+
+                if not is_valid_claim(claim, ticket, marked):
+                    await ws.send(json.dumps({
+                        "type": "CLAIM_RESULT",
+                        "data": {"status": "INVALID"}
+                    }))
+                    continue
+
+                room["claims"][claim] = player
+                room["scores"][player] += 10
 
                 broadcast(room_id, {
                     "type": "CLAIM_RESULT",
@@ -109,20 +204,29 @@ async def handler(ws):
                         "claim": claim
                     }
                 })
+
                 broadcast(room_id, {
                     "type": "SCORE_UPDATE",
-                    "data": {"scores": r["scores"]}
+                    "data": {"scores": room["scores"]}
                 })
 
     finally:
         if room_id and room_id in rooms:
             rooms[room_id]["players"].pop(ws, None)
+            rooms[room_id]["marked"].pop(ws, None)
             if not rooms[room_id]["players"]:
                 rooms.pop(room_id)
 
+# ---------- START SERVER ----------
+
 async def main():
-    port = int(os.environ["PORT"])  # 🔴 THIS IS NON-NEGOTIABLE
-    async with websockets.serve(handler, "0.0.0.0", port):
+    port = int(os.environ["PORT"])
+    async with websockets.serve(
+        handler,
+        "0.0.0.0",
+        port,
+        process_request=process_request
+    ):
         print("WebSocket running on", port)
         await asyncio.Future()
 
