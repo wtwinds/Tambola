@@ -4,6 +4,7 @@ import random
 import websockets
 import uuid
 import time
+import os
 
 rooms = {}
 
@@ -23,14 +24,14 @@ def broadcast(room_id, message):
     room = rooms.get(room_id)
     if not room:
         return
-    for ws in room["players"]:
+    for ws in list(room["players"]):
         asyncio.create_task(ws.send(json.dumps(message)))
 
 # ------------------ CLAIM CHECKS ------------------
 def flatten(ticket):
     return {n for row in ticket for n in row if n != 0}
 
-def validate_claim(room, ws, claim):
+def validate_claim(room, ws):
     ticket = room["tickets"].get(ws)
     if not ticket:
         return False
@@ -38,11 +39,9 @@ def validate_claim(room, ws, claim):
     ticket_numbers = flatten(ticket)
     called = set(room["called"])
 
-    # All marked numbers must be drawn
     if not ticket_numbers.intersection(called):
         return False
 
-    # 10-second rule
     now = time.time()
     for n in ticket_numbers.intersection(called):
         draw_time = room["draw_times"].get(n)
@@ -62,7 +61,6 @@ async def handler(ws):
             t = data.get("type")
             payload = data.get("data", {})
 
-            # ---------- CREATE ROOM ----------
             if t == "CREATE_ROOM":
                 player_name = payload["player_name"]
                 mode = payload.get("mode", "AUTO")
@@ -85,11 +83,9 @@ async def handler(ws):
                     "data": {"room_id": room_id}
                 }))
 
-            # ---------- JOIN ROOM ----------
             elif t == "JOIN_ROOM":
                 room_id = payload["room_id"]
                 player_name = payload["player_name"]
-
                 room = rooms.get(room_id)
                 if not room:
                     continue
@@ -102,7 +98,6 @@ async def handler(ws):
                     "data": {"players": list(room["scores"].keys())}
                 })
 
-            # ---------- START GAME ----------
             elif t == "START_GAME":
                 room = rooms.get(room_id)
                 if not room or ws != room["host"]:
@@ -118,7 +113,6 @@ async def handler(ws):
 
                 broadcast(room_id, {"type": "GAME_STARTED"})
 
-            # ---------- DRAW NUMBER ----------
             elif t == "DRAW_NUMBER":
                 room = rooms.get(room_id)
                 if not room or ws != room["host"]:
@@ -136,7 +130,6 @@ async def handler(ws):
                     "data": {"number": num}
                 })
 
-            # ---------- CLAIM ----------
             elif t == "MAKE_CLAIM":
                 room = rooms.get(room_id)
                 if not room:
@@ -151,17 +144,13 @@ async def handler(ws):
                     }))
                     continue
 
-                # SERVER VALIDATION 🔥
-                valid = True
                 if room["mode"] == "MANUAL":
-                    valid = validate_claim(room, ws, claim)
-
-                if not valid:
-                    await ws.send(json.dumps({
-                        "type": "CLAIM_RESULT",
-                        "data": {"status": "INVALID"}
-                    }))
-                    continue
+                    if not validate_claim(room, ws):
+                        await ws.send(json.dumps({
+                            "type": "CLAIM_RESULT",
+                            "data": {"status": "INVALID"}
+                        }))
+                        continue
 
                 room["claims"].add(claim)
                 room["scores"][player_name] += 10
@@ -193,9 +182,9 @@ async def handler(ws):
 
 # ------------------ START SERVER ------------------
 async def main():
-    async with websockets.serve(handler, "0.0.0.0", 8765):
-        print("WebSocket server running on port 8765")
+    port = int(os.environ.get("PORT", 10000))
+    async with websockets.serve(handler, "0.0.0.0", port):
+        print(f"WebSocket server running on port {port}")
         await asyncio.Future()
 
 asyncio.run(main())
-#Isba chutiya
