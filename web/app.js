@@ -195,7 +195,7 @@ document.getElementById("join-room-btn").onclick = () => {
   const room = document.getElementById("room-input").value.trim();
   if(!name || !room) return;
 
-  gameMode = "AUTO"; // joiners follow host
+  gameMode = "AUTO"; 
 
   socket.send(JSON.stringify({
     type: "JOIN_ROOM",
