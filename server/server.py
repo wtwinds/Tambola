@@ -201,7 +201,7 @@ async def main():
     async with websockets.serve(
         handler,
         "0.0.0.0",
-        8765,
+        10000,
         process_request=process_request
     ):
         print("WebSocket running on port 8765")
