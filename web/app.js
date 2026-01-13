@@ -2,9 +2,9 @@ const WS_URL = "wss://tambola-f6di.onrender.com";
 const socket = new WebSocket(WS_URL);
 
 let isHost = false;
-let gameMode = "AUTO";
+let gameMode = "AUTO"; // default, host CREATE_ROOM pe set karega
 
-/* UI HELPERS */
+/* ================= UI HELPERS ================= */
 function showScreen(id){
   document.querySelectorAll(".screen").forEach(s =>
     s.classList.remove("active")
@@ -12,7 +12,7 @@ function showScreen(id){
   document.getElementById(id).classList.add("active");
 }
 
-/* RENDER TICKET */
+/* ================= RENDER TICKET ================= */
 function renderTicket(ticket){
   const div = document.getElementById("ticket");
   div.innerHTML = "";
@@ -31,10 +31,9 @@ function renderTicket(ticket){
         c.className = "ticket-cell";
         c.innerText = n;
 
-        // ✅ MANUAL MODE = CLICK TO MARK
+        // ✅ MANUAL MODE: CLICK TO MARK (NO AUTO)
         c.onclick = () => {
           if (gameMode !== "MANUAL") return;
-
           c.classList.toggle("marked");
         };
       }
@@ -46,7 +45,7 @@ function renderTicket(ticket){
   });
 }
 
-/* CLAIM */
+/* ================= CLAIM ================= */
 function claim(type){
   socket.send(JSON.stringify({
     type: "MAKE_CLAIM",
@@ -54,7 +53,6 @@ function claim(type){
   }));
 }
 
-/* CLAIM STATUS */
 function showClaim(msg, cls){
   const box = document.getElementById("claim-status");
   box.className = "claim-status";
@@ -64,7 +62,7 @@ function showClaim(msg, cls){
   setTimeout(() => box.className = "claim-status", 2000);
 }
 
-/* SOCKET EVENTS */
+/* ================= SOCKET EVENTS ================= */
 socket.onmessage = e => {
   const { type, data } = JSON.parse(e.data);
 
@@ -89,7 +87,13 @@ socket.onmessage = e => {
   }
 
   if(type === "GAME_STARTED"){
-    gameMode = data.mode || "AUTO"; // 🔒 server decides
+    // 🔒 IMPORTANT FIX:
+    // server agar mode bheje → overwrite
+    // nahi bheje → jo pehle set hua tha wahi rahe (MANUAL/AUTO)
+    if (data && data.mode) {
+      gameMode = data.mode;
+    }
+
     showScreen("game-screen");
 
     if(isHost){
@@ -141,11 +145,14 @@ socket.onmessage = e => {
   }
 };
 
-/* BUTTONS */
+/* ================= BUTTONS ================= */
 document.getElementById("create-room-btn").onclick = () => {
   const name = document.getElementById("player-name").value.trim();
   const mode = document.querySelector('input[name="mode"]:checked').value;
   if(!name) return;
+
+  // host ke client pe mode pehle set
+  gameMode = mode;
 
   socket.send(JSON.stringify({
     type: "CREATE_ROOM",
