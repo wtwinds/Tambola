@@ -2,9 +2,9 @@ const WS_URL = "wss://tambola-f6di.onrender.com";
 const socket = new WebSocket(WS_URL);
 
 let isHost = false;
-let gameMode = "AUTO"; // default, host CREATE_ROOM pe set karega
+let gameMode = "AUTO"; // default
 
-/* ================= UI HELPERS ================= */
+/* ================= SCREEN HELPER ================= */
 function showScreen(id){
   document.querySelectorAll(".screen").forEach(s =>
     s.classList.remove("active")
@@ -12,7 +12,7 @@ function showScreen(id){
   document.getElementById(id).classList.add("active");
 }
 
-/* ================= RENDER TICKET ================= */
+/* ================= TICKET RENDER ================= */
 function renderTicket(ticket){
   const div = document.getElementById("ticket");
   div.innerHTML = "";
@@ -31,7 +31,7 @@ function renderTicket(ticket){
         c.className = "ticket-cell";
         c.innerText = n;
 
-        // ✅ MANUAL MODE: CLICK TO MARK (NO AUTO)
+        // 🔥 MANUAL MODE → CLICK TO MARK (ALL PLAYERS)
         c.onclick = () => {
           if (gameMode !== "MANUAL") return;
           c.classList.toggle("marked");
@@ -87,9 +87,7 @@ socket.onmessage = e => {
   }
 
   if(type === "GAME_STARTED"){
-    // 🔒 IMPORTANT FIX:
-    // server agar mode bheje → overwrite
-    // nahi bheje → jo pehle set hua tha wahi rahe (MANUAL/AUTO)
+    // 🔒 VERY IMPORTANT: server decides mode for ALL clients
     if (data && data.mode) {
       gameMode = data.mode;
     }
@@ -104,7 +102,7 @@ socket.onmessage = e => {
   if(type === "NUMBER_DRAWN"){
     document.getElementById("current-number").innerText = data.number;
 
-    // 🔥 AUTO MODE ONLY → auto mark
+    // ✅ AUTO MODE ONLY → auto mark
     if(gameMode === "AUTO"){
       document.querySelectorAll(".ticket-cell").forEach(c=>{
         if(Number(c.innerText) === data.number){
@@ -151,8 +149,7 @@ document.getElementById("create-room-btn").onclick = () => {
   const mode = document.querySelector('input[name="mode"]:checked').value;
   if(!name) return;
 
-  // host ke client pe mode pehle set
-  gameMode = mode;
+  gameMode = mode; // host ke client pe set
 
   socket.send(JSON.stringify({
     type: "CREATE_ROOM",
