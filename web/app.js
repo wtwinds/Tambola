@@ -31,15 +31,11 @@ function renderTicket(ticket){
         c.className = "ticket-cell";
         c.innerText = n;
 
-        // 🔥 MANUAL MODE CLICK = GREEN MARK
+        // ✅ MANUAL MODE = CLICK TO MARK
         c.onclick = () => {
           if (gameMode !== "MANUAL") return;
 
-          if (c.classList.contains("marked")) {
-            c.classList.remove("marked");
-          } else {
-            c.classList.add("marked");
-          }
+          c.classList.toggle("marked");
         };
       }
 
@@ -93,7 +89,7 @@ socket.onmessage = e => {
   }
 
   if(type === "GAME_STARTED"){
-    gameMode = data.mode || "AUTO";
+    gameMode = data.mode || "AUTO"; // 🔒 server decides
     showScreen("game-screen");
 
     if(isHost){
@@ -104,7 +100,7 @@ socket.onmessage = e => {
   if(type === "NUMBER_DRAWN"){
     document.getElementById("current-number").innerText = data.number;
 
-    // AUTO MODE = auto green (unchanged behaviour)
+    // 🔥 AUTO MODE ONLY → auto mark
     if(gameMode === "AUTO"){
       document.querySelectorAll(".ticket-cell").forEach(c=>{
         if(Number(c.innerText) === data.number){
