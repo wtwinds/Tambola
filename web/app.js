@@ -3,6 +3,7 @@ const socket = new WebSocket(WS_URL);
 
 let isHost = false;
 let gameMode = "AUTO"; // default
+let currentNumber = null; // ✅ track last drawn number
 
 /* ================= SCREEN HELPER ================= */
 function showScreen(id){
@@ -31,10 +32,20 @@ function renderTicket(ticket){
         c.className = "ticket-cell";
         c.innerText = n;
 
-        // 🔥 MANUAL MODE → CLICK TO MARK (ALL PLAYERS)
+        // ✅ MANUAL MODE: ONLY VALID NUMBER CAN BE MARKED
         c.onclick = () => {
           if (gameMode !== "MANUAL") return;
-          c.classList.toggle("marked");
+
+          const num = Number(c.innerText);
+
+          // ❌ no number drawn yet
+          if (currentNumber === null) return;
+
+          // ❌ wrong number clicked
+          if (num !== currentNumber) return;
+
+          // ✅ valid manual mark
+          c.classList.add("marked");
         };
       }
 
@@ -87,7 +98,7 @@ socket.onmessage = e => {
   }
 
   if(type === "GAME_STARTED"){
-    // 🔒 VERY IMPORTANT: server decides mode for ALL clients
+    // server decides mode for ALL players
     if (data && data.mode) {
       gameMode = data.mode;
     }
@@ -101,8 +112,9 @@ socket.onmessage = e => {
 
   if(type === "NUMBER_DRAWN"){
     document.getElementById("current-number").innerText = data.number;
+    currentNumber = data.number; // ✅ set current number
 
-    // ✅ AUTO MODE ONLY → auto mark
+    // AUTO MODE ONLY → auto mark
     if(gameMode === "AUTO"){
       document.querySelectorAll(".ticket-cell").forEach(c=>{
         if(Number(c.innerText) === data.number){
@@ -149,7 +161,7 @@ document.getElementById("create-room-btn").onclick = () => {
   const mode = document.querySelector('input[name="mode"]:checked').value;
   if(!name) return;
 
-  gameMode = mode; // host ke client pe set
+  gameMode = mode; // host side
 
   socket.send(JSON.stringify({
     type: "CREATE_ROOM",
