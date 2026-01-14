@@ -77,6 +77,7 @@ async def handler(ws):
         t = data["type"]
         d = data.get("data", {})
 
+        # ---------- CREATE ROOM ----------
         if t == "CREATE_ROOM":
             player = d["player_name"]
             room_id = generate_room_id()
@@ -88,7 +89,8 @@ async def handler(ws):
                 "numbers": set(),
                 "scores": {},
                 "claimed": set(),
-                "ended": False
+                "ended": False,
+                "mode": d.get("mode", "AUTO")   # ✅ CHANGE 1
             }
 
             await ws.send(json.dumps({
@@ -101,6 +103,7 @@ async def handler(ws):
                 "data": {"players": rooms[room_id]["players"]}
             })
 
+        # ---------- JOIN ROOM ----------
         elif t == "JOIN_ROOM":
             room_id = d["room_id"]
             player = d["player_name"]
@@ -116,6 +119,7 @@ async def handler(ws):
                 "data": {"players": room["players"]}
             })
 
+        # ---------- START GAME ----------
         elif t == "START_GAME":
             room = rooms[room_id]
 
@@ -130,9 +134,12 @@ async def handler(ws):
 
             await broadcast(room, {
                 "type": "GAME_STARTED",
-                "data": {}
+                "data": {
+                    "mode": room["mode"]          # ✅ CHANGE 2
+                }
             })
 
+        # ---------- DRAW NUMBER ----------
         elif t == "DRAW_NUMBER":
             room = rooms[room_id]
             if room["ended"]:
@@ -149,11 +156,11 @@ async def handler(ws):
                 "data": {"number": n}
             })
 
+        # ---------- CLAIM ----------
         elif t == "MAKE_CLAIM":
             room = rooms[room_id]
             claim = d["claim"]
 
-            # Already claimed
             if claim in room["claimed"]:
                 await ws.send(json.dumps({
                     "type": "CLAIM_RESULT",
@@ -173,7 +180,6 @@ async def handler(ws):
                 }))
                 continue
 
-            # SUCCESS
             room["claimed"].add(claim)
             room["scores"][player] += 1
 
