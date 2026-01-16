@@ -4,6 +4,7 @@ const socket = new WebSocket(WS_URL);
 let isHost = false;
 let gameMode = "AUTO";
 let currentNumber = null;
+let gameStarted = false;
 
 /* ================= SCREEN HELPER ================= */
 function showScreen(id){
@@ -43,6 +44,16 @@ function renderTicket(ticket){
   });
 }
 
+/* ================= CLAIM ================= */
+function claim(type){
+  if(!gameStarted) return;
+
+  socket.send(JSON.stringify({
+    type: "MAKE_CLAIM",
+    data: { claim: type }
+  }));
+}
+
 /* ================= SOCKET ================= */
 socket.onmessage = e => {
   const { type, data } = JSON.parse(e.data);
@@ -69,6 +80,7 @@ socket.onmessage = e => {
   }
 
   if(type === "GAME_STARTED"){
+    gameStarted = true;
     if(data && data.mode) gameMode = data.mode;
     showScreen("game-screen");
 
@@ -91,13 +103,14 @@ socket.onmessage = e => {
   }
 };
 
-
+/* ================= BUTTONS ================= */
 document.getElementById("create-room-btn").onclick = () => {
   const name = document.getElementById("player-name").value.trim();
   const mode = document.querySelector('input[name="mode"]:checked').value;
   if(!name) return;
 
   gameMode = mode;
+
   socket.send(JSON.stringify({
     type: "CREATE_ROOM",
     data: { player_name: name, mode }
@@ -114,7 +127,7 @@ document.getElementById("join-room-btn").onclick = () => {
     data: { player_name: name, room_id: room }
   }));
 
-  document.getElementById("start-game-btn").style.display = "none"; // ❌ non-host
+  document.getElementById("start-game-btn").style.display = "none";
   showScreen("waiting-screen");
 };
 
