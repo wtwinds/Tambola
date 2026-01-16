@@ -6,40 +6,60 @@ let gameStarted = false;
 let gameMode = "AUTO";
 let currentNumber = null;
 
+/* ================= SCREEN ================= */
 function showScreen(id){
-  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.querySelectorAll(".screen").forEach(s =>
+    s.classList.remove("active")
+  );
   document.getElementById(id).classList.add("active");
 }
 
+/* ================= TICKET ================= */
 function renderTicket(ticket){
   const div = document.getElementById("ticket");
   div.innerHTML = "";
+
   ticket.forEach(row=>{
     const r = document.createElement("div");
     r.className = "ticket-row";
+
     row.forEach(n=>{
       const c = document.createElement("div");
+
       if(n === 0){
         c.className = "ticket-cell empty";
         c.innerHTML = "&nbsp;";
       } else {
         c.className = "ticket-cell";
         c.innerText = n;
+
+        // ✅ MANUAL MODE MARKING
+        c.onclick = () => {
+          if(gameMode !== "MANUAL") return;
+          if(currentNumber === null) return;
+          if(Number(c.innerText) !== currentNumber) return;
+          c.classList.add("marked");
+        };
       }
+
       r.appendChild(c);
     });
+
     div.appendChild(r);
   });
 }
 
+/* ================= CLAIM ================= */
 function claim(type){
   if(!gameStarted) return;
+
   socket.send(JSON.stringify({
     type: "MAKE_CLAIM",
     data: { claim: type }
   }));
 }
 
+/* ================= SOCKET ================= */
 socket.onmessage = e => {
   const { type, data } = JSON.parse(e.data);
 
@@ -68,12 +88,24 @@ socket.onmessage = e => {
     gameStarted = true;
     gameMode = data.mode;
     showScreen("game-screen");
-    if(isHost) document.getElementById("draw-btn").style.display = "block";
+
+    if(isHost){
+      document.getElementById("draw-btn").style.display = "block";
+    }
   }
 
   if(type === "NUMBER_DRAWN"){
     currentNumber = data.number;
     document.getElementById("current-number").innerText = data.number;
+
+    // ✅ AUTO MODE MARKING
+    if(gameMode === "AUTO"){
+      document.querySelectorAll(".ticket-cell").forEach(c=>{
+        if(Number(c.innerText) === data.number){
+          c.classList.add("marked");
+        }
+      });
+    }
   }
 
   if(type === "CLAIM_RESULT"){
@@ -118,11 +150,14 @@ socket.onmessage = e => {
   }
 };
 
+/* ================= BUTTONS ================= */
 document.getElementById("create-room-btn").onclick = () => {
   const name = document.getElementById("player-name").value.trim();
   const mode = document.querySelector("input[name=mode]:checked").value;
   if(!name) return;
+
   gameMode = mode;
+
   socket.send(JSON.stringify({
     type: "CREATE_ROOM",
     data: { player_name: name, mode }
@@ -133,15 +168,20 @@ document.getElementById("join-room-btn").onclick = () => {
   const name = document.getElementById("player-name").value.trim();
   const room = document.getElementById("room-input").value.trim();
   if(!name || !room) return;
+
   socket.send(JSON.stringify({
     type: "JOIN_ROOM",
     data: { player_name: name, room_id: room }
   }));
+
+  document.getElementById("start-game-btn").style.display = "none";
   showScreen("waiting-screen");
 };
 
 document.getElementById("start-game-btn").onclick = () => {
-  if(isHost) socket.send(JSON.stringify({ type: "START_GAME" }));
+  if(isHost){
+    socket.send(JSON.stringify({ type: "START_GAME" }));
+  }
 };
 
 document.getElementById("draw-btn").onclick = () =>
