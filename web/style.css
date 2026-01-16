@@ -167,6 +167,9 @@ hr {
 .claim-status.already {
   animation: shake 0.4s;
 }
-
-
-/* Responsive */
+.mode-select{
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
