@@ -200,7 +200,6 @@ async def handler(ws):
                     }
                 })
 
-# ---------- START SERVER ----------
 async def main():
     async with websockets.serve(handler, "0.0.0.0", PORT):
         print("Server running on", PORT)
