@@ -2,8 +2,8 @@ const WS_URL = "wss://tambola-f6di.onrender.com";
 const socket = new WebSocket(WS_URL);
 
 let isHost = false;
-let gameMode = "AUTO"; // default
-let currentNumber = null; // ✅ track last drawn number
+let gameMode = "AUTO";
+let currentNumber = null;
 
 /* ================= SCREEN HELPER ================= */
 function showScreen(id){
@@ -13,7 +13,7 @@ function showScreen(id){
   document.getElementById(id).classList.add("active");
 }
 
-/* ================= TICKET RENDER ================= */
+/* ================= TICKET ================= */
 function renderTicket(ticket){
   const div = document.getElementById("ticket");
   div.innerHTML = "";
@@ -24,62 +24,33 @@ function renderTicket(ticket){
 
     row.forEach(n=>{
       const c = document.createElement("div");
-
       if(n === 0){
         c.className = "ticket-cell empty";
         c.innerHTML = "&nbsp;";
       } else {
         c.className = "ticket-cell";
         c.innerText = n;
-
-        // ✅ MANUAL MODE: ONLY VALID NUMBER CAN BE MARKED
         c.onclick = () => {
-          if (gameMode !== "MANUAL") return;
-
-          const num = Number(c.innerText);
-
-          // ❌ no number drawn yet
-          if (currentNumber === null) return;
-
-          // ❌ wrong number clicked
-          if (num !== currentNumber) return;
-
-          // ✅ valid manual mark
+          if(gameMode !== "MANUAL") return;
+          if(currentNumber === null) return;
+          if(Number(c.innerText) !== currentNumber) return;
           c.classList.add("marked");
         };
       }
-
       r.appendChild(c);
     });
-
     div.appendChild(r);
   });
 }
 
-/* ================= CLAIM ================= */
-function claim(type){
-  socket.send(JSON.stringify({
-    type: "MAKE_CLAIM",
-    data: { claim: type }
-  }));
-}
-
-function showClaim(msg, cls){
-  const box = document.getElementById("claim-status");
-  box.className = "claim-status";
-  void box.offsetWidth;
-  box.classList.add("show", cls);
-  box.innerText = msg;
-  setTimeout(() => box.className = "claim-status", 2000);
-}
-
-/* ================= SOCKET EVENTS ================= */
+/* ================= SOCKET ================= */
 socket.onmessage = e => {
   const { type, data } = JSON.parse(e.data);
 
   if(type === "ROOM_CREATED"){
     isHost = true;
     document.getElementById("room-id").innerText = data.room_id;
+    document.getElementById("start-game-btn").style.display = "block";
     showScreen("waiting-screen");
   }
 
@@ -98,11 +69,7 @@ socket.onmessage = e => {
   }
 
   if(type === "GAME_STARTED"){
-    // server decides mode for ALL players
-    if (data && data.mode) {
-      gameMode = data.mode;
-    }
-
+    if(data && data.mode) gameMode = data.mode;
     showScreen("game-screen");
 
     if(isHost){
@@ -112,9 +79,8 @@ socket.onmessage = e => {
 
   if(type === "NUMBER_DRAWN"){
     document.getElementById("current-number").innerText = data.number;
-    currentNumber = data.number; // ✅ set current number
+    currentNumber = data.number;
 
-    // AUTO MODE ONLY → auto mark
     if(gameMode === "AUTO"){
       document.querySelectorAll(".ticket-cell").forEach(c=>{
         if(Number(c.innerText) === data.number){
@@ -122,36 +88,6 @@ socket.onmessage = e => {
         }
       });
     }
-  }
-
-  if(type === "CLAIM_RESULT"){
-    if(data.status === "SUCCESS")
-      showClaim("Claim Successful", "success");
-    if(data.status === "INVALID")
-      showClaim("Invalid Claim", "invalid");
-    if(data.status === "ALREADY")
-      showClaim("Already Claimed", "already");
-  }
-
-  if(type === "SCORE_UPDATE"){
-    const ul = document.getElementById("score-list");
-    ul.innerHTML = "";
-    Object.entries(data.scores).forEach(([p,s])=>{
-      const li = document.createElement("li");
-      li.innerText = `${p}: ${s}`;
-      ul.appendChild(li);
-    });
-  }
-
-  if(type === "GAME_ENDED"){
-    const ol = document.getElementById("leaderboard-list");
-    ol.innerHTML = "";
-    data.leaderboard.forEach(p=>{
-      const li = document.createElement("li");
-      li.innerText = `${p.name} - ${p.score}`;
-      ol.appendChild(li);
-    });
-    showScreen("leaderboard-screen");
   }
 };
 
@@ -161,8 +97,7 @@ document.getElementById("create-room-btn").onclick = () => {
   const mode = document.querySelector('input[name="mode"]:checked').value;
   if(!name) return;
 
-  gameMode = mode; // host side
-
+  gameMode = mode;
   socket.send(JSON.stringify({
     type: "CREATE_ROOM",
     data: { player_name: name, mode }
@@ -179,11 +114,14 @@ document.getElementById("join-room-btn").onclick = () => {
     data: { player_name: name, room_id: room }
   }));
 
+  document.getElementById("start-game-btn").style.display = "none"; // ❌ non-host
   showScreen("waiting-screen");
 };
 
-document.getElementById("start-game-btn").onclick =
-  () => socket.send(JSON.stringify({ type: "START_GAME" }));
+document.getElementById("start-game-btn").onclick = () => {
+  if(!isHost) return;
+  socket.send(JSON.stringify({ type: "START_GAME" }));
+};
 
-document.getElementById("draw-btn").onclick =
-  () => socket.send(JSON.stringify({ type: "DRAW_NUMBER" }));
+document.getElementById("draw-btn").onclick = () =>
+  socket.send(JSON.stringify({ type: "DRAW_NUMBER" }));

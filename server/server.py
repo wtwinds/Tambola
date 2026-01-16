@@ -9,8 +9,8 @@ def generate_room_id():
 # ---------- TAMBOLA TICKET ----------
 def generate_ticket():
     ticket = [[0]*9 for _ in range(3)]
-
     row_cols = [sorted(random.sample(range(9), 5)) for _ in range(3)]
+
     for r in range(3):
         for c in row_cols[r]:
             ticket[r][c] = -1
@@ -22,15 +22,13 @@ def generate_ticket():
 
         start = c*10 + 1
         end = 90 if c == 8 else start + 9
-        nums = random.sample(range(start, end+1), len(rows))
-        nums.sort()
+        nums = sorted(random.sample(range(start, end+1), len(rows)))
 
-        for r,n in zip(rows, nums):
+        for r, n in zip(rows, nums):
             ticket[r][c] = n
 
     return ticket
 
-# ---------- HELPERS ----------
 def flatten(ticket):
     return [n for row in ticket for n in row if n != 0]
 
@@ -45,23 +43,15 @@ def validate_claim(claim, ticket, drawn):
 
     if claim == "QUICK_5":
         return len([n for n in all_nums if n in drawn]) >= 5
-
     if claim == "FIRST_LINE":
         return all(n in drawn for n in rows[0])
-
     if claim == "SECOND_LINE":
         return all(n in drawn for n in rows[1])
-
     if claim == "THIRD_LINE":
         return all(n in drawn for n in rows[2])
-
     if claim == "FOUR_CORNERS":
-        corners = [
-            rows[0][0], rows[0][-1],
-            rows[2][0], rows[2][-1]
-        ]
+        corners = [rows[0][0], rows[0][-1], rows[2][0], rows[2][-1]]
         return all(n in drawn for n in corners)
-
     if claim == "TAMBOLA":
         return all(n in drawn for n in all_nums)
 
@@ -83,6 +73,7 @@ async def handler(ws):
             room_id = generate_room_id()
 
             rooms[room_id] = {
+                "host": ws,                    # ✅ HOST SOCKET
                 "players": [player],
                 "sockets": [ws],
                 "tickets": {},
@@ -90,7 +81,7 @@ async def handler(ws):
                 "scores": {},
                 "claimed": set(),
                 "ended": False,
-                "mode": d.get("mode", "AUTO")   # ✅ CHANGE 1
+                "mode": d.get("mode", "AUTO")
             }
 
             await ws.send(json.dumps({
@@ -119,9 +110,11 @@ async def handler(ws):
                 "data": {"players": room["players"]}
             })
 
-        # ---------- START GAME ----------
+        # ---------- START GAME (HOST ONLY) ----------
         elif t == "START_GAME":
-            room = rooms[room_id]
+            room = rooms.get(room_id)
+            if not room or ws != room["host"]:
+                continue  # ❌ non-host ignored
 
             for i, p in enumerate(room["players"]):
                 room["tickets"][p] = generate_ticket()
@@ -134,15 +127,13 @@ async def handler(ws):
 
             await broadcast(room, {
                 "type": "GAME_STARTED",
-                "data": {
-                    "mode": room["mode"]          # ✅ CHANGE 2
-                }
+                "data": {"mode": room["mode"]}
             })
 
         # ---------- DRAW NUMBER ----------
         elif t == "DRAW_NUMBER":
-            room = rooms[room_id]
-            if room["ended"]:
+            room = rooms.get(room_id)
+            if not room or room["ended"]:
                 continue
 
             n = random.randint(1, 90)
@@ -158,7 +149,10 @@ async def handler(ws):
 
         # ---------- CLAIM ----------
         elif t == "MAKE_CLAIM":
-            room = rooms[room_id]
+            room = rooms.get(room_id)
+            if not room:
+                continue
+
             claim = d["claim"]
 
             if claim in room["claimed"]:
@@ -171,9 +165,7 @@ async def handler(ws):
             ticket = room["tickets"][player]
             drawn = room["numbers"]
 
-            valid = validate_claim(claim, ticket, drawn)
-
-            if not valid:
+            if not validate_claim(claim, ticket, drawn):
                 await ws.send(json.dumps({
                     "type": "CLAIM_RESULT",
                     "data": {"status": "INVALID", "claim": claim}
@@ -185,11 +177,7 @@ async def handler(ws):
 
             await broadcast(room, {
                 "type": "CLAIM_RESULT",
-                "data": {
-                    "status": "SUCCESS",
-                    "claim": claim,
-                    "player": player
-                }
+                "data": {"status": "SUCCESS", "claim": claim, "player": player}
             })
 
             await broadcast(room, {
@@ -199,11 +187,9 @@ async def handler(ws):
 
             if claim == "TAMBOLA":
                 room["ended"] = True
-                leaderboard = sorted(
-                    room["scores"].items(),
-                    key=lambda x: x[1],
-                    reverse=True
-                )
+                leaderboard = sorted(room["scores"].items(),
+                                     key=lambda x: x[1],
+                                     reverse=True)
 
                 await broadcast(room, {
                     "type": "GAME_ENDED",
