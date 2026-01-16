@@ -91,7 +91,7 @@ socket.onmessage = e => {
   }
 };
 
-/* ================= BUTTONS ================= */
+
 document.getElementById("create-room-btn").onclick = () => {
   const name = document.getElementById("player-name").value.trim();
   const mode = document.querySelector('input[name="mode"]:checked').value;
