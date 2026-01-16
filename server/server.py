@@ -73,7 +73,7 @@ async def handler(ws):
             room_id = generate_room_id()
 
             rooms[room_id] = {
-                "host": ws,                    # ✅ HOST SOCKET
+                "host": ws,
                 "players": [player],
                 "sockets": [ws],
                 "tickets": {},
@@ -81,6 +81,7 @@ async def handler(ws):
                 "scores": {},
                 "claimed": set(),
                 "ended": False,
+                "started": False,        # ✅ important
                 "mode": d.get("mode", "AUTO")
             }
 
@@ -114,7 +115,9 @@ async def handler(ws):
         elif t == "START_GAME":
             room = rooms.get(room_id)
             if not room or ws != room["host"]:
-                continue  # ❌ non-host ignored
+                continue
+
+            room["started"] = True   # ✅ fix claims
 
             for i, p in enumerate(room["players"]):
                 room["tickets"][p] = generate_ticket()
@@ -133,7 +136,7 @@ async def handler(ws):
         # ---------- DRAW NUMBER ----------
         elif t == "DRAW_NUMBER":
             room = rooms.get(room_id)
-            if not room or room["ended"]:
+            if not room or room["ended"] or not room["started"]:
                 continue
 
             n = random.randint(1, 90)
@@ -150,7 +153,7 @@ async def handler(ws):
         # ---------- CLAIM ----------
         elif t == "MAKE_CLAIM":
             room = rooms.get(room_id)
-            if not room:
+            if not room or not room["started"]:
                 continue
 
             claim = d["claim"]
@@ -162,10 +165,11 @@ async def handler(ws):
                 }))
                 continue
 
-            ticket = room["tickets"][player]
-            drawn = room["numbers"]
+            ticket = room["tickets"].get(player)
+            if not ticket:
+                continue
 
-            if not validate_claim(claim, ticket, drawn):
+            if not validate_claim(claim, ticket, room["numbers"]):
                 await ws.send(json.dumps({
                     "type": "CLAIM_RESULT",
                     "data": {"status": "INVALID", "claim": claim}
@@ -177,7 +181,11 @@ async def handler(ws):
 
             await broadcast(room, {
                 "type": "CLAIM_RESULT",
-                "data": {"status": "SUCCESS", "claim": claim, "player": player}
+                "data": {
+                    "status": "SUCCESS",
+                    "claim": claim,
+                    "player": player
+                }
             })
 
             await broadcast(room, {
@@ -200,6 +208,7 @@ async def handler(ws):
                     }
                 })
 
+# ---------- START SERVER ----------
 async def main():
     async with websockets.serve(handler, "0.0.0.0", PORT):
         print("Server running on", PORT)
