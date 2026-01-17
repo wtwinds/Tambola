@@ -125,9 +125,8 @@ socket.onmessage = e => {
         "Tambola": "TAMBOLA"
       };
 
-      const buttons = document.querySelectorAll(".claims button");
-      buttons.forEach(btn => {
-        if (claimMap[btn.innerText] === data.claim) {
+      document.querySelectorAll(".claims button").forEach(btn=>{
+        if(claimMap[btn.innerText] === data.claim){
           btn.classList.add("claimed");
           btn.disabled = true;
         }
@@ -152,10 +151,12 @@ socket.onmessage = e => {
     const ul = document.getElementById("score-list");
     ul.innerHTML = "";
 
-    Object.entries(data.claims_won || {}).forEach(([player, claims])=>{
-      const li = document.createElement("li");
+    Object.entries(data.scores || {}).forEach(([player, score])=>{
+      const claims = (data.claims_won && data.claims_won[player]) || [];
       const total = claims.length;
       const text = claims.length ? ` (${claims.join(", ")})` : "";
+
+      const li = document.createElement("li");
       li.innerText = `${player} : ${total}${text}`;
       ul.appendChild(li);
     });
