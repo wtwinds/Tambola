@@ -147,7 +147,7 @@ socket.onmessage = e => {
     setTimeout(()=> box.className = "claim-status", 2500);
   }
 
-  /* ================= SCORE UPDATE (FINAL CHANGE) ================= */
+  /* ================= SCORE UPDATE ================= */
   if(type === "SCORE_UPDATE"){
     const ul = document.getElementById("score-list");
     ul.innerHTML = "";
