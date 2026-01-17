@@ -176,8 +176,8 @@ hr {
 }
 
 .claims button.claimed {
-  background: #b71c1c !important;
+  background: #b71c1c;
   cursor: not-allowed;
   opacity: 0.9;
-  text: white;
+  color: #fff;
 }
