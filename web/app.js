@@ -117,14 +117,23 @@ socket.onmessage = e => {
       box.innerText = `${data.claim} WON by ${data.player}`;
     
 
-        // ✅ MARK CLAIM BUTTON AS USED (FOR EVERYONE)
+    const claimMap = {
+      "Quick 5": "QUICK_5",
+      "Four Corners": "FOUR_CORNERS",
+      "1st Line": "FIRST_LINE",
+      "2nd Line": "SECOND_LINE",
+      "3rd Line": "THIRD_LINE",
+      "Tambola": "TAMBOLA"
+    };
+
     const buttons = document.querySelectorAll(".claims button");
     buttons.forEach(btn => {
-      if(btn.innerText.toUpperCase().replace(" ", "_") === data.claim){
+      if (claimMap[btn.innerText] === data.claim) {
         btn.classList.add("claimed");
         btn.disabled = true;
       }
     });
+
   }
     if(data.status === "INVALID"){
       box.classList.add("invalid");
