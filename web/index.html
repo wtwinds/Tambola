@@ -9,7 +9,7 @@
 
 <div id="app">
 
-  
+  <!-- LOBBY -->
   <section id="lobby-screen" class="screen active">
     <h1>Tambola</h1>
 
@@ -29,9 +29,7 @@
       </div>
 
       <button id="create-room-btn">Create Room</button>
-
       <hr />
-
       <input id="room-input" placeholder="Enter Room ID" />
       <button id="join-room-btn">Join Room</button>
     </div>
@@ -58,7 +56,15 @@
     </button>
 
     <div class="layout">
-      <div class="card">
+
+      <!-- 🔲 RECTANGULAR TICKET BOARD -->
+      <div class="card ticket-wrapper">
+
+        <!-- DRAWN NUMBERS -->
+        <div class="drawn-strip">
+          <div id="drawn-numbers"></div>
+        </div>
+
         <h3>Your Ticket</h3>
         <div id="ticket" class="ticket-grid"></div>
 
@@ -72,6 +78,7 @@
         </div>
       </div>
 
+      <!-- SCORES -->
       <div class="card">
         <h3>Scores</h3>
         <ul id="score-list"></ul>
@@ -95,4 +102,3 @@
 <script src="app.js"></script>
 </body>
 </html>
-<!---Hello-->

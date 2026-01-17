@@ -181,3 +181,35 @@ hr {
   opacity: 0.9;
   color: #fff;
 }
+/* OUTER RECTANGULAR TICKET CONTAINER */
+.ticket-wrapper {
+  border: 2px solid rgba(255,255,255,0.15);
+  padding: 16px;
+}
+
+/* DRAWN NUMBERS STRIP */
+.drawn-strip {
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 12px;
+  min-height: 36px;
+}
+
+#drawn-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.drawn-number {
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}

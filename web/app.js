@@ -5,6 +5,7 @@ let isHost = false;
 let gameStarted = false;
 let gameMode = "AUTO";
 let currentNumber = null;
+let drawnNumbers = [];
 
 /* ================= SCREEN ================= */
 function showScreen(id){
@@ -33,7 +34,6 @@ function renderTicket(ticket){
         c.className = "ticket-cell";
         c.innerText = n;
 
-        // MANUAL MODE MARKING
         c.onclick = () => {
           if(gameMode !== "MANUAL") return;
           if(currentNumber === null) return;
@@ -41,10 +41,8 @@ function renderTicket(ticket){
           c.classList.add("marked");
         };
       }
-
       r.appendChild(c);
     });
-
     div.appendChild(r);
   });
 }
@@ -52,7 +50,6 @@ function renderTicket(ticket){
 /* ================= CLAIM ================= */
 function claim(type){
   if(!gameStarted) return;
-
   socket.send(JSON.stringify({
     type: "MAKE_CLAIM",
     data: { claim: type }
@@ -88,7 +85,6 @@ socket.onmessage = e => {
     gameStarted = true;
     gameMode = data.mode;
     showScreen("game-screen");
-
     if(isHost){
       document.getElementById("draw-btn").style.display = "block";
     }
@@ -98,7 +94,19 @@ socket.onmessage = e => {
     currentNumber = data.number;
     document.getElementById("current-number").innerText = data.number;
 
-    // AUTO MODE MARKING
+    if(!drawnNumbers.includes(data.number)){
+      drawnNumbers.push(data.number);
+    }
+
+    const box = document.getElementById("drawn-numbers");
+    box.innerHTML = "";
+    drawnNumbers.forEach(n=>{
+      const d = document.createElement("div");
+      d.className = "drawn-number";
+      d.innerText = n;
+      box.appendChild(d);
+    });
+
     if(gameMode === "AUTO"){
       document.querySelectorAll(".ticket-cell").forEach(c=>{
         if(Number(c.innerText) === data.number){
@@ -146,18 +154,12 @@ socket.onmessage = e => {
     setTimeout(()=> box.className = "claim-status", 2500);
   }
 
-  /* ================= SCORE UPDATE ================= */
   if(type === "SCORE_UPDATE"){
     const ul = document.getElementById("score-list");
     ul.innerHTML = "";
-
-    Object.entries(data.scores || {}).forEach(([player, score])=>{
-      const claims = (data.claims_won && data.claims_won[player]) || [];
-      const total = claims.length;
-      const text = claims.length ? ` (${claims.join(", ")})` : "";
-
+    Object.entries(data.scores || {}).forEach(([p,s])=>{
       const li = document.createElement("li");
-      li.innerText = `${player} : ${total}${text}`;
+      li.innerText = `${p}: ${s}`;
       ul.appendChild(li);
     });
   }
@@ -179,9 +181,7 @@ document.getElementById("create-room-btn").onclick = () => {
   const name = document.getElementById("player-name").value.trim();
   const mode = document.querySelector("input[name=mode]:checked").value;
   if(!name) return;
-
   gameMode = mode;
-
   socket.send(JSON.stringify({
     type: "CREATE_ROOM",
     data: { player_name: name, mode }
@@ -192,12 +192,10 @@ document.getElementById("join-room-btn").onclick = () => {
   const name = document.getElementById("player-name").value.trim();
   const room = document.getElementById("room-input").value.trim();
   if(!name || !room) return;
-
   socket.send(JSON.stringify({
     type: "JOIN_ROOM",
     data: { player_name: name, room_id: room }
   }));
-
   document.getElementById("start-game-btn").style.display = "none";
   showScreen("waiting-screen");
 };
