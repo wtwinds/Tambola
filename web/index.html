@@ -39,10 +39,12 @@
   <section id="waiting-screen" class="screen">
     <h2>Waiting Room</h2>
     <p>Room ID: <strong id="room-id">----</strong></p>
+
     <div class="card">
       <h3>Players</h3>
       <ul id="players-list"></ul>
     </div>
+
     <button id="start-game-btn">Start Game</button>
   </section>
 
@@ -57,25 +59,29 @@
 
     <div class="layout">
 
-      <!-- 🔲 RECTANGULAR TICKET BOARD -->
-      <div class="card ticket-wrapper">
+      <!-- ✅ OUTER BORDER CONTAINER (NEW) -->
+      <div class="ticket-outer">
 
         <!-- DRAWN NUMBERS -->
         <div class="drawn-strip">
           <div id="drawn-numbers"></div>
         </div>
 
-        <h3>Your Ticket</h3>
-        <div id="ticket" class="ticket-grid"></div>
+        <!-- ✅ INNER ORIGINAL TICKET CARD (UNCHANGED) -->
+        <div class="card">
+          <h3>Your Ticket</h3>
+          <div id="ticket" class="ticket-grid"></div>
 
-        <div class="claims">
-          <button onclick="claim('QUICK_5')">Quick 5</button>
-          <button onclick="claim('FOUR_CORNERS')">Four Corners</button>
-          <button onclick="claim('FIRST_LINE')">1st Line</button>
-          <button onclick="claim('SECOND_LINE')">2nd Line</button>
-          <button onclick="claim('THIRD_LINE')">3rd Line</button>
-          <button onclick="claim('TAMBOLA')">Tambola</button>
+          <div class="claims">
+            <button onclick="claim('QUICK_5')">Quick 5</button>
+            <button onclick="claim('FOUR_CORNERS')">Four Corners</button>
+            <button onclick="claim('FIRST_LINE')">1st Line</button>
+            <button onclick="claim('SECOND_LINE')">2nd Line</button>
+            <button onclick="claim('THIRD_LINE')">3rd Line</button>
+            <button onclick="claim('TAMBOLA')">Tambola</button>
+          </div>
         </div>
+
       </div>
 
       <!-- SCORES -->
