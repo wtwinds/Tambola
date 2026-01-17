@@ -33,7 +33,7 @@ function renderTicket(ticket){
         c.className = "ticket-cell";
         c.innerText = n;
 
-        // ✅ MANUAL MODE MARKING
+        // MANUAL MODE MARKING
         c.onclick = () => {
           if(gameMode !== "MANUAL") return;
           if(currentNumber === null) return;
@@ -98,7 +98,7 @@ socket.onmessage = e => {
     currentNumber = data.number;
     document.getElementById("current-number").innerText = data.number;
 
-    // ✅ AUTO MODE MARKING
+    // AUTO MODE MARKING
     if(gameMode === "AUTO"){
       document.querySelectorAll(".ticket-cell").forEach(c=>{
         if(Number(c.innerText) === data.number){
@@ -115,30 +115,30 @@ socket.onmessage = e => {
     if(data.status === "SUCCESS"){
       box.classList.add("success");
       box.innerText = `${data.claim} WON by ${data.player}`;
-    
 
-    const claimMap = {
-      "Quick 5": "QUICK_5",
-      "Four Corners": "FOUR_CORNERS",
-      "1st Line": "FIRST_LINE",
-      "2nd Line": "SECOND_LINE",
-      "3rd Line": "THIRD_LINE",
-      "Tambola": "TAMBOLA"
-    };
+      const claimMap = {
+        "Quick 5": "QUICK_5",
+        "Four Corners": "FOUR_CORNERS",
+        "1st Line": "FIRST_LINE",
+        "2nd Line": "SECOND_LINE",
+        "3rd Line": "THIRD_LINE",
+        "Tambola": "TAMBOLA"
+      };
 
-    const buttons = document.querySelectorAll(".claims button");
-    buttons.forEach(btn => {
-      if (claimMap[btn.innerText] === data.claim) {
-        btn.classList.add("claimed");
-        btn.disabled = true;
-      }
-    });
+      const buttons = document.querySelectorAll(".claims button");
+      buttons.forEach(btn => {
+        if (claimMap[btn.innerText] === data.claim) {
+          btn.classList.add("claimed");
+          btn.disabled = true;
+        }
+      });
+    }
 
-  }
     if(data.status === "INVALID"){
       box.classList.add("invalid");
       box.innerText = "Invalid Claim ❌";
     }
+
     if(data.status === "ALREADY"){
       box.classList.add("already");
       box.innerText = "Already Claimed ⚠️";
@@ -147,12 +147,16 @@ socket.onmessage = e => {
     setTimeout(()=> box.className = "claim-status", 2500);
   }
 
+  /* ================= SCORE UPDATE (FINAL CHANGE) ================= */
   if(type === "SCORE_UPDATE"){
     const ul = document.getElementById("score-list");
     ul.innerHTML = "";
-    Object.entries(data.scores).forEach(([p,s])=>{
+
+    Object.entries(data.claims_won || {}).forEach(([player, claims])=>{
       const li = document.createElement("li");
-      li.innerText = `${p}: ${s}`;
+      const total = claims.length;
+      const text = claims.length ? ` (${claims.join(", ")})` : "";
+      li.innerText = `${player} : ${total}${text}`;
       ul.appendChild(li);
     });
   }
