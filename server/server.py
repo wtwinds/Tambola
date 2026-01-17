@@ -82,6 +82,7 @@ async def handler(ws):
                 "tickets": {},
                 "numbers": set(),
                 "scores": {},
+                "claims_won": {},      # ✅ ADD
                 "claimed": set(),
                 "started": False,
                 "ended": False,
@@ -123,6 +124,7 @@ async def handler(ws):
             for i, p in enumerate(room["players"]):
                 room["tickets"][p] = generate_ticket()
                 room["scores"][p] = 0
+                room["claims_won"][p] = []   # ✅ INIT
                 await room["sockets"][i].send(json.dumps({
                     "type": "TICKET_ASSIGNED",
                     "data": {"ticket": room["tickets"][p]}
@@ -173,6 +175,7 @@ async def handler(ws):
 
             room["claimed"].add(claim)
             room["scores"][player] += 1
+            room["claims_won"][player].append(claim)   # ✅ ADD
 
             await broadcast(room, {
                 "type": "CLAIM_RESULT",
@@ -181,7 +184,10 @@ async def handler(ws):
 
             await broadcast(room, {
                 "type": "SCORE_UPDATE",
-                "data": {"scores": room["scores"]}
+                "data": {
+                    "scores": room["scores"],
+                    "claims_won": room["claims_won"]   # ✅ ADD
+                }
             })
 
             if claim == "TAMBOLA":
