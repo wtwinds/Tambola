@@ -174,3 +174,9 @@ hr {
   margin-bottom: 20px;
   text-align: center;
 }
+
+.claims button.claimed {
+  background: #b71c1c !important;
+  cursor: not-allowed;
+  opacity: 0.9;
+}

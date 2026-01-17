@@ -115,7 +115,17 @@ socket.onmessage = e => {
     if(data.status === "SUCCESS"){
       box.classList.add("success");
       box.innerText = `${data.claim} WON by ${data.player}`;
-    }
+    
+
+        // ✅ MARK CLAIM BUTTON AS USED (FOR EVERYONE)
+    const buttons = document.querySelectorAll(".claims button");
+    buttons.forEach(btn => {
+      if(btn.innerText.toUpperCase().replace(" ", "_") === data.claim){
+        btn.classList.add("claimed");
+        btn.disabled = true;
+      }
+    });
+  }
     if(data.status === "INVALID"){
       box.classList.add("invalid");
       box.innerText = "Invalid Claim ❌";
